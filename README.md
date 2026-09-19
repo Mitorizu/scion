@@ -30,6 +30,36 @@ Scion reads the setting before each agent run. It replaces only Pi's generated s
 
 To return to observation without prompt changes, delete the file or set `mode` to `observe`. Scion ignores project configuration until Pi trusts the project.
 
+## Withhold tool schemas
+
+The skill catalog is usually not where the money goes. In a measured run on a 15-skill, 18-tool setup, tool schemas were 53% of the request and the skill catalog was 20%. Masking skills alone leaves the larger half untouched.
+
+Add a tool policy to withhold tool schemas the turn does not need:
+
+```json
+{
+  "mode": "mask",
+  "tools": "linked"
+}
+```
+
+Under `linked`, a request carries Pi's built-in tools, the tools selected skills name in `allowed-tools`, and anything already activated this session. Everything else is withheld. The default is `all`, which keeps Scion's existing behavior of only ever adding linked tools.
+
+Withheld tools are not gone. Scion registers `scion_find_tools`, and the model calls it to search what was withheld and activate the matches:
+
+```
+scion_find_tools({ query: "search GitHub issues", limit: 2 })
+-> Activated 2 tool(s):
+   - github_search_tools: Search GitHub Actions MCP method names and descriptions.
+   - github_describe_tool: Show one GitHub Actions MCP method schema and make it callable.
+```
+
+The active set only grows within a session. Scion never takes back a tool it activated. That matters more than the extra tokens it costs: tool schemas sit at the front of the request, so churning them every turn would invalidate the provider's cached prefix and charge full price for the whole payload. Growing the set lets Pi use native deferred loading where the model supports it.
+
+Two limits are worth knowing before you turn this on. A withheld tool costs the model a round trip to recover, so a turn that needs an unusual tool gets slower. And a skill that links six tools keeps all six the moment it is selected, so the savings depend on how tightly your skills scope their `allowed-tools`.
+
+Built-in tools a user disabled stay disabled. Scion keeps built-ins only when Pi had them active.
+
 ## Configure a skill
 
 Add routing metadata under the standard `metadata` frontmatter field:
@@ -68,7 +98,7 @@ Scion shows `waiting for first prompt` at session start. After routing begins, t
 
 A skill graph is synced when it has no disabled skills or metadata diagnostics. Tool links are synced when every `allowed-tools` name resolves to a tool registered with Pi.
 
-Run `/scion:status` for counts, timing, selected skills, linked tools, and savings. Run `/scion:explain` for the same status plus selection reasons, changed paths, unavailable tools, and graph diagnostics.
+Run `/scion:status` for counts, timing, selected skills, linked tools, the tool policy, and savings. Run `/scion:explain` for the same status plus withheld tools, selection reasons, changed paths, unavailable tools, and graph diagnostics.
 
 Scion ranks skills from:
 
@@ -128,15 +158,31 @@ export interface WeatherLookupInput {
 }
 ```
 
-`ToolIndex` embeds each tool once and ranks queries with cosine similarity. Its default `HashingTextEmbedder` is a dependency-free lexical baseline. Pass a model-backed `TextEmbedder` for semantic matching. These utilities do not register tools with Pi. A skill's `allowed-tools` field links to tools after their owners register them.
+`ToolIndex` embeds each tool once and ranks queries with cosine similarity. Its default `HashingTextEmbedder` is a dependency-free baseline; pass a model-backed `TextEmbedder` for semantic matching. This is the pluggable path, meant for callers who want to bring their own embedding model. Scion's own `scion_find_tools` does not use it, and instead ranks by inverse document frequency, which needs no model and behaves better on the small corpus of one session's withheld tools.
+
+These utilities do not register tools with Pi. A skill's `allowed-tools` field links to tools after their owners register them.
+
+## Measured savings
+
+One prompt, one project, three settings, captured off the wire against a local endpoint that records what Pi actually sends. Eight project skills plus seven global ones, 18 registered tools.
+
+| setting | request | tools | skill catalog |
+|---|---|---|---|
+| `observe` | 20,202 chars | 10,624 (18 tools) | 3,931 |
+| `mask`, `tools: all` | 17,640 chars | 10,624 (18 tools) | 1,419 |
+| `mask`, `tools: linked` | 15,132 chars | 8,116 (12 tools) | 1,419 |
+
+Against `observe` that is roughly 640 tokens per request from masking skills and another 630 from withholding tools. Your numbers depend on how many tools your extensions register and how many of them any one turn needs.
+
+The six withheld tools in that run were the ones no selected skill asked for. The twelve that stayed were four built-ins, the discovery tool, and seven tools the selected skills named.
 
 ## Performance and limits
 
 Skill routing is synchronous and local. A unit test routes 500 skills in less than 50 ms. Git status collection has a 35 ms timeout and falls back to paths changed through Pi's `edit` and `write` tools.
 
-Skill-to-tool links are exact names, so they add no embedding request. Linked tools remain active for the session after Scion adds them. This avoids taking tools away from other extensions, but it does not enforce a fixed tool-schema budget across a long session.
+Skill-to-tool links are exact names, so they add no embedding request. `scion_find_tools` ranks withheld tools by inverse document frequency over their names and descriptions, which is also local and adds no request. Rarity weighting is what stops a query for "search GitHub issues" from returning `grep` because both descriptions say "search".
 
-Token savings are estimates based on characters removed from the generated skill catalog. The per-request value applies to each model turn in the current agent run. The session value includes follow-up turns after tool calls.
+Token savings are estimates. The skill figure counts characters removed from the generated catalog; the tool figure counts the schemas left out of the request. Both use four characters per token. The per-request value applies to each model turn in the current agent run, and the session value accumulates across follow-up turns after tool calls.
 
 The router is lexical, not semantic. It matches names, paths, and uncommon words. A prompt that describes a task without naming it or touching a matching path selects nothing, and `mask` mode then shows an empty catalog. Start in `observe` mode and read `/scion:explain` before you trust it with a large skill set.
 

@@ -5,7 +5,15 @@ export default function scion(pi: ExtensionAPI): void {
 	initializeScion(pi);
 }
 
-export { initializeScion, parseGitStatusPaths, type ScionOptions } from "./extension.js";
+export { initializeScion, parseGitStatusPaths, SCION_FIND_TOOLS, type ScionOptions } from "./extension.js";
+export { planToolBudget, type BudgetTool, type ToolBudgetInput } from "./tool-budget.js";
+export { rankTools, type SearchableTool, type ToolMatch } from "./tool-search.js";
+export {
+	discriminativeWords,
+	documentFrequency,
+	inverseDocumentFrequency,
+	words,
+} from "./lexical.js";
 export {
 	buildSkillDependencyGraph,
 	indexSkillDirectory,

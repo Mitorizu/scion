@@ -96,8 +96,28 @@ export interface LinkedToolRoute {
 	unavailableToolNames: readonly string[];
 }
 
+/**
+ * `all` sends every tool Pi activated. `linked` sends built-in tools, the tools
+ * selected skills ask for, and anything already activated this session.
+ */
+export type ToolPolicy = "all" | "linked";
+
+export type ToolKeepReason = "builtin" | "skill-linked" | "activated" | "loader";
+
+export interface ToolKeep {
+	name: string;
+	reason: ToolKeepReason;
+}
+
+export interface ToolBudgetResult {
+	keepNames: readonly string[];
+	keeps: readonly ToolKeep[];
+	droppedNames: readonly string[];
+}
+
 export interface ScionConfig {
 	mode: ScionMode;
+	tools: ToolPolicy;
 }
 
 export interface ScionSnapshot {
@@ -117,4 +137,7 @@ export interface ScionSnapshot {
 	masked: boolean;
 	estimatedTokensSavedPerRequest: number;
 	estimatedTokensSavedSession: number;
+	toolPolicy: ToolPolicy;
+	droppedToolNames: readonly string[];
+	estimatedToolTokensSaved: number;
 }

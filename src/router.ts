@@ -1,4 +1,5 @@
 import { performance } from "node:perf_hooks";
+import { discriminativeWords, words } from "./lexical.js";
 import {
 	DEFAULT_MAX_ACTIVE_SKILLS,
 	type DomainTriggerSpec,
@@ -9,19 +10,6 @@ import {
 	type SkillRouteReason,
 	type SkillRouteResult,
 } from "./types.js";
-
-const STOP_WORDS = new Set([
-	"about", "after", "again", "also", "and", "are", "before", "being", "can", "code", "does", "file",
-	"for", "from", "have", "into", "its", "more", "not", "project", "skill", "that", "the", "their", "then",
-	"this", "through", "use", "using", "when", "where", "which", "with", "work", "you", "your",
-]);
-
-function words(value: string): string[] {
-	return value
-		.toLowerCase()
-		.split(/[^a-z0-9]+/u)
-		.filter((word) => word.length >= 3 && !STOP_WORDS.has(word));
-}
 
 function unique<T>(values: readonly T[]): T[] {
 	return [...new Set(values)];
@@ -99,20 +87,9 @@ export function routeSkills(
 	const startedAt = performance.now();
 	const candidates = [...graph.nodes.values()]
 		.filter((node) => !node.skill.disableModelInvocation || context.explicitSkillName === node.name);
-	const documentFrequency = new Map<string, number>();
-	for (const node of candidates) {
-		for (const token of new Set([...words(node.name), ...words(node.description)])) {
-			documentFrequency.set(token, (documentFrequency.get(token) ?? 0) + 1);
-		}
-	}
-	const commonThreshold = Math.max(1, Math.floor(candidates.length * 0.25));
-	const discriminativeWords = new Set(
-		[...documentFrequency.entries()]
-			.filter(([, count]) => count <= commonThreshold)
-			.map(([token]) => token),
-	);
+	const discriminative = discriminativeWords(candidates.map((node) => `${node.name} ${node.description}`));
 	const ranked = candidates
-		.map((node) => scoreSkill(node.name, node.description, context, node.domainTriggers, discriminativeWords))
+		.map((node) => scoreSkill(node.name, node.description, context, node.domainTriggers, discriminative))
 		.filter((match) => match.score > 0)
 		.sort((left, right) => right.score - left.score || left.name.localeCompare(right.name));
 	const selected: string[] = [];

@@ -9,7 +9,7 @@ import {
 	type Skill,
 } from "@earendil-works/pi-coding-agent";
 import { afterEach, describe, expect, it } from "vitest";
-import scion, { initializeScion, parseGitStatusPaths } from "../src/index.js";
+import scion, { initializeScion, parseGitStatusPaths, SCION_FIND_TOOLS } from "../src/index.js";
 import { buildSkillDependencyGraph, indexSkillDirectory, indexSkills, parseSkillMetadata } from "../src/indexer.js";
 import { loadScionConfig, maskSkillCatalog, ScionManager } from "../src/manager.js";
 import { resolveLinkedTools, routeSkills } from "../src/router.js";
@@ -214,8 +214,22 @@ describe("Scion manager", () => {
 		const root = await temporaryDirectory("scion-project-");
 		await mkdir(join(root, ".pi"), { recursive: true });
 		await writeFile(join(root, ".pi", "scion.json"), '{"mode":"mask"}\n');
-		expect(loadScionConfig(root, true)).toEqual({ mode: "mask" });
-		expect(loadScionConfig(root, false)).toEqual({ mode: "observe" });
+		expect(loadScionConfig(root, true)).toEqual({ mode: "mask", tools: "all" });
+		expect(loadScionConfig(root, false)).toEqual({ mode: "observe", tools: "all" });
+	});
+
+	it("reads the tool policy only when masking is on", async () => {
+		const root = await temporaryDirectory("scion-project-");
+		await mkdir(join(root, ".pi"), { recursive: true });
+
+		await writeFile(join(root, ".pi", "scion.json"), '{"mode":"mask","tools":"linked"}\n');
+		expect(loadScionConfig(root, true)).toEqual({ mode: "mask", tools: "linked" });
+
+		await writeFile(join(root, ".pi", "scion.json"), '{"mode":"observe","tools":"linked"}\n');
+		expect(loadScionConfig(root, true)).toEqual({ mode: "observe", tools: "all" });
+
+		await writeFile(join(root, ".pi", "scion.json"), '{"mode":"mask","tools":"nonsense"}\n');
+		expect(loadScionConfig(root, true)).toEqual({ mode: "mask", tools: "all" });
 	});
 });
 
@@ -343,6 +357,76 @@ describe("Scion extension", () => {
 
 		await (handlers.get("before_agent_start") as BeforeHandler)(event, context);
 		expect(activeTools).toEqual(["read", "publish_release"]);
+	});
+});
+
+describe("tool budget in a live turn", () => {
+	it("withholds unrelated tools and restores them through the discovery tool", async () => {
+		const root = await temporaryDirectory("scion-project-");
+		const cacheRoot = await temporaryDirectory("scion-skill-cache-");
+		await mkdir(join(root, ".pi"), { recursive: true });
+		await writeFile(join(root, ".pi", "scion.json"), '{"mode":"mask","tools":"linked"}\n');
+		const rust = await createSkill(root, "rust-review", "Review Rust ownership.", "allowed-tools: rust_analyzer\nmetadata:\n  domain_trigger: ['\\.rs$']\n");
+		type BeforeHandler = (
+			event: { prompt: string; systemPrompt: string; systemPromptOptions: BuildSystemPromptOptions },
+			context: ExtensionContext,
+		) => Promise<{ systemPrompt: string } | undefined>;
+		type AnyTool = {
+			name: string;
+			description: string;
+			parameters: unknown;
+			sourceInfo: { source: string };
+			execute: (id: string, params: { query: string; limit?: number }) => Promise<{ content: { type: string; text: string }[] }>;
+		};
+		const handlers = new Map<string, unknown>();
+		const registered: AnyTool[] = [
+			{ name: "read", description: "Read a file.", parameters: {}, sourceInfo: { source: "builtin" } },
+			{ name: "bash", description: "Run a command.", parameters: {}, sourceInfo: { source: "builtin" } },
+			{ name: "rust_analyzer", description: "Inspect Rust types.", parameters: {}, sourceInfo: { source: "ext" } },
+			{ name: "github_search", description: "Search GitHub issues and pull requests.", parameters: {}, sourceInfo: { source: "ext" } },
+		] as unknown as AnyTool[];
+		let activeTools = ["read", "bash", "rust_analyzer", "github_search"];
+		const api = {
+			on: (name: string, handler: unknown) => handlers.set(name, handler),
+			registerCommand: () => undefined,
+			registerTool: (tool: AnyTool) => {
+				// Pi stamps sourceInfo onto every registered tool.
+				registered.push({ ...tool, sourceInfo: { source: "ext" } });
+				activeTools = [...activeTools, tool.name];
+			},
+			getAllTools: () => registered,
+			getActiveTools: () => [...activeTools],
+			setActiveTools: (names: string[]) => { activeTools = names; },
+			exec: async () => ({ stdout: "", stderr: "", code: 0, killed: false }),
+		};
+		initializeScion(api as unknown as ExtensionAPI, { cacheRoot, gitStatus: async () => ["src/lib.rs"] });
+		const context = {
+			cwd: root,
+			isProjectTrusted: () => true,
+			ui: { notify: () => undefined, setStatus: () => undefined },
+		} as unknown as ExtensionContext;
+		const event = {
+			prompt: "Review the ownership changes in src/lib.rs",
+			systemPrompt: "Header",
+			systemPromptOptions: { cwd: root, selectedTools: ["read"], skills: [rust] },
+		};
+
+		await (handlers.get("session_start") as (e: unknown, c: ExtensionContext) => Promise<void>)({}, context);
+		await (handlers.get("before_agent_start") as BeforeHandler)(event, context);
+
+		// Built-ins and the skill's linked tool survive; the unrelated tool does not.
+		expect(activeTools).toEqual(["read", "bash", "rust_analyzer", SCION_FIND_TOOLS]);
+		expect(activeTools).not.toContain("github_search");
+
+		const loader = registered.find((tool) => tool.name === SCION_FIND_TOOLS);
+		expect(loader).toBeDefined();
+		const result = await loader!.execute("call-1", { query: "search GitHub issues", limit: 1 });
+		expect(result.content[0]?.text).toContain("github_search");
+		expect(activeTools).toContain("github_search");
+
+		// A later turn keeps what the model pulled back in, so the set only grows.
+		await (handlers.get("before_agent_start") as BeforeHandler)(event, context);
+		expect(activeTools).toContain("github_search");
 	});
 });
 

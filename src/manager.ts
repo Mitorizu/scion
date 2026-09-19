@@ -27,6 +27,7 @@ import {
 	type DomainTriggerSpec,
 	type ParsedSkillMetadata,
 	type ScionConfig,
+	type ToolPolicy,
 	type SkillDependencyGraph,
 	type SkillGraphDiagnostic,
 	type SkillMetadataResult,
@@ -197,15 +198,26 @@ function configPath(cwd: string): string {
 	return join(cwd, CONFIG_DIR_NAME, "scion.json");
 }
 
+function decodeToolPolicy(value: unknown): ToolPolicy {
+	return value === "linked" ? "linked" : "all";
+}
+
+/**
+ * Observe mode changes nothing, so a tool policy is only read once masking is
+ * on. That keeps "observe" a single promise rather than a per-surface matrix.
+ */
 export function loadScionConfig(cwd: string, projectTrusted: boolean): ScionConfig {
-	if (!projectTrusted) return { mode: "observe" };
+	const observe: ScionConfig = { mode: "observe", tools: "all" };
+	if (!projectTrusted) return observe;
 	try {
 		const value = JSON.parse(readFileSync(configPath(cwd), "utf8")) as unknown;
-		if (isRecord(value) && value.mode === "mask") return { mode: "mask" };
+		if (isRecord(value) && value.mode === "mask") {
+			return { mode: "mask", tools: decodeToolPolicy(value.tools) };
+		}
 	} catch {
 		// Missing or invalid project configuration keeps the safe observe default.
 	}
-	return { mode: "observe" };
+	return observe;
 }
 
 export function maskSkillCatalog(

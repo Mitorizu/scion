@@ -1,6 +1,6 @@
 {
 	"name": "@mitorizu/scion",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"description": "Pi extension that routes skills and linked tools into the system prompt instead of listing every skill on every turn.",
 	"type": "module",
 	"license": "MIT",
@@ -48,11 +48,13 @@
 		"yaml": "2.9.0"
 	},
 	"peerDependencies": {
-		"@earendil-works/pi-coding-agent": "*"
+		"@earendil-works/pi-coding-agent": "*",
+		"typebox": "*"
 	},
 	"devDependencies": {
 		"@earendil-works/pi-coding-agent": "0.85.1",
 		"@types/node": "22.19.19",
+		"typebox": "1.3.7",
 		"typescript": "5.9.3",
 		"vitest": "5.0.1"
 	},
