@@ -1,0 +1,59 @@
+{
+	"name": "pi-scion",
+	"version": "0.1.0",
+	"description": "Pi extension that routes skills and linked tools into the system prompt instead of listing every skill on every turn.",
+	"type": "module",
+	"license": "MIT",
+	"author": "Jake Aboganda",
+	"homepage": "https://github.com/Mitorizu/scion#readme",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/Mitorizu/scion.git"
+	},
+	"bugs": {
+		"url": "https://github.com/Mitorizu/scion/issues"
+	},
+	"keywords": [
+		"pi-package",
+		"pi-extension",
+		"skills",
+		"agent",
+		"prompt-engineering"
+	],
+	"pi": {
+		"extensions": [
+			"./src/index.ts"
+		]
+	},
+	"exports": {
+		".": {
+			"types": "./src/index.ts",
+			"default": "./src/index.ts"
+		}
+	},
+	"files": [
+		"src",
+		"README.md",
+		"LICENSE"
+	],
+	"scripts": {
+		"test": "vitest run",
+		"typecheck": "tsc --noEmit -p tsconfig.json"
+	},
+	"dependencies": {
+		"safe-regex2": "5.1.1",
+		"yaml": "2.9.0"
+	},
+	"peerDependencies": {
+		"@earendil-works/pi-coding-agent": "*"
+	},
+	"devDependencies": {
+		"@earendil-works/pi-coding-agent": "0.85.1",
+		"@types/node": "22.19.19",
+		"typescript": "5.9.3",
+		"vitest": "4.1.11"
+	},
+	"engines": {
+		"node": ">=22.19.0"
+	}
+}
