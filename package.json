@@ -1,5 +1,5 @@
 {
-	"name": "pi-scion",
+	"name": "@mitorizu/scion",
 	"version": "0.1.0",
 	"description": "Pi extension that routes skills and linked tools into the system prompt instead of listing every skill on every turn.",
 	"type": "module",
@@ -31,6 +31,9 @@
 			"default": "./src/index.ts"
 		}
 	},
+	"publishConfig": {
+		"access": "public"
+	},
 	"files": [
 		"src",
 		"README.md",
@@ -51,7 +54,7 @@
 		"@earendil-works/pi-coding-agent": "0.85.1",
 		"@types/node": "22.19.19",
 		"typescript": "5.9.3",
-		"vitest": "4.1.11"
+		"vitest": "5.0.1"
 	},
 	"engines": {
 		"node": ">=22.19.0"

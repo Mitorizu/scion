@@ -9,7 +9,7 @@ Scion starts in `observe` mode. Observe records routing decisions and changes no
 ## Install
 
 ```bash
-pi install npm:pi-scion
+pi install npm:@mitorizu/scion
 ```
 
 Or from a checkout:
@@ -84,7 +84,7 @@ Run `/scion:reindex` to delete the metadata cache and rebuild the graph. Scion o
 Scion also ships the tool-schema utilities it was built alongside. `compileToolSchema` converts direct or OpenAI-style JSON tool definitions to compact TypeScript declarations. It preserves descriptions as JSDoc, marks fields outside the JSON Schema `required` array as optional, converts enums to literal unions, and handles nested objects recursively.
 
 ```ts
-import { compileToolSchemaJson, parseToolDefinition, ToolIndex } from "pi-scion";
+import { compileToolSchemaJson, parseToolDefinition, ToolIndex } from "@mitorizu/scion";
 
 const rawTool = JSON.stringify({
 	type: "function",
