@@ -1,6 +1,6 @@
-# How to measure what Scion saves
+# How to measure what Winnow saves
 
-This benchmark records the request Pi builds under each Scion setting and prints the size of each part. It calls no model. Nothing leaves your machine.
+This benchmark records the request Pi builds under each Winnow setting and prints the size of each part. It calls no model. Nothing leaves your machine.
 
 ## Run it
 
@@ -14,7 +14,7 @@ The script prints one row per setting:
 capture                  request     tools   n   catalog
 observe                    13453      8062  18      2005
 mask-skills                11946      8062  18       528
-mask-skills-and-tools       8145      4261   7       528
+mask-skills-and-tools       8147      4263   7       528
 ```
 
 Sizes are characters of JSON. `n` is the number of tool schemas in the request. Divide by four for a rough token count.
@@ -25,7 +25,7 @@ To measure a different prompt, pass it as an argument:
 bash bench/run.sh "Draft release notes for the last milestone"
 ```
 
-If port 8788 is busy, set `SCION_BENCH_PORT`.
+If port 8788 is busy, set `WINNOW_BENCH_PORT`.
 
 ## What the fixture contains
 
@@ -35,7 +35,7 @@ The run uses `--no-extensions` and `--no-skills`, so your installed extensions a
 
 ## Measure your own setup instead
 
-Drop the two isolation flags to see what Scion does for the skills and tools you actually have:
+Drop the two isolation flags to see what Winnow does for the skills and tools you actually have:
 
 1. Copy `bench/run.sh`.
 2. Remove `--no-extensions` and `--no-skills` from the `pi` command.

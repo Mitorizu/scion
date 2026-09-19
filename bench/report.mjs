@@ -1,4 +1,4 @@
-// Breaks a captured request into the parts Scion can change.
+// Breaks a captured request into the parts Winnow can change.
 import { readFileSync } from "node:fs";
 
 function systemText(body) {

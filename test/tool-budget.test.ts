@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { planToolBudget, type BudgetTool } from "../src/tool-budget.js";
 
-const LOADER = "scion_find_tools";
+const LOADER = "winnow_find_tools";
 
 const TOOLS: BudgetTool[] = [
 	{ name: "read", builtin: true },

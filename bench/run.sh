@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Measure what Pi sends under each Scion setting.
+# Measure what Pi sends under each Winnow setting.
 #
 # Runs three agent turns against a local capture server. No model is called and
 # no request leaves the machine. Prints one row per setting.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-port="${SCION_BENCH_PORT:-8788}"
+port="${WINNOW_BENCH_PORT:-8788}"
 prompt="${1:-Review the ownership changes in src/lib.rs}"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
@@ -18,7 +18,7 @@ git -C "$work" add -A
 
 capture() {
 	local label="$1" config="$2"
-	printf '%s\n' "$config" > "$work/.pi/scion.json"
+	printf '%s\n' "$config" > "$work/.pi/winnow.json"
 	node "$root/bench/capture.mjs" "$work/$label.json" "$port" > /dev/null &
 	local server=$!
 	sleep 1

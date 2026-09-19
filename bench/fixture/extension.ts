@@ -4,7 +4,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
-const PORT = Number(process.env.SCION_BENCH_PORT ?? 8788);
+const PORT = Number(process.env.WINNOW_BENCH_PORT ?? 8788);
 
 interface FixtureTool {
 	name: string;

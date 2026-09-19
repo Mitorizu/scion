@@ -310,6 +310,6 @@ export function indexSkillDirectory(
 	directory: string,
 	maxActiveSkills = DEFAULT_MAX_ACTIVE_SKILLS,
 ): SkillDependencyGraph {
-	const loaded = loadSkillsFromDir({ dir: directory, source: "scion" });
+	const loaded = loadSkillsFromDir({ dir: directory, source: "winnow" });
 	return indexSkills(loaded.skills, maxActiveSkills);
 }

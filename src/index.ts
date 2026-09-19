@@ -1,11 +1,11 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { initializeScion } from "./extension.js";
+import { initializeWinnow } from "./extension.js";
 
-export default function scion(pi: ExtensionAPI): void {
-	initializeScion(pi);
+export default function winnow(pi: ExtensionAPI): void {
+	initializeWinnow(pi);
 }
 
-export { initializeScion, parseGitStatusPaths, SCION_FIND_TOOLS, type ScionOptions } from "./extension.js";
+export { initializeWinnow, parseGitStatusPaths, WINNOW_FIND_TOOLS, type WinnowOptions } from "./extension.js";
 export { planToolBudget, type BudgetTool, type ToolBudgetInput } from "./tool-budget.js";
 export { rankTools, type SearchableTool, type ToolMatch } from "./tool-search.js";
 export {
@@ -21,12 +21,12 @@ export {
 	parseSkillMetadata,
 } from "./indexer.js";
 export {
-	loadScionConfig,
+	loadWinnowConfig,
 	maskSkillCatalog,
-	ScionManager,
+	WinnowManager,
 	type GraphLoadResult,
 	type PromptMaskResult,
-	type ScionManagerOptions,
+	type WinnowManagerOptions,
 } from "./manager.js";
 export { resolveLinkedTools, routeSkills } from "./router.js";
 export {

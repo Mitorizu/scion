@@ -9,28 +9,28 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import {
-	loadScionConfig,
+	loadWinnowConfig,
 	maskSkillCatalog,
-	ScionManager,
-	type ScionManagerOptions,
+	WinnowManager,
+	type WinnowManagerOptions,
 } from "./manager.js";
 import { resolveLinkedTools, routeSkills } from "./router.js";
 import { planToolBudget } from "./tool-budget.js";
 import { rankTools } from "./tool-search.js";
-import type { ScionSnapshot } from "./types.js";
+import type { WinnowSnapshot } from "./types.js";
 
-export interface ScionOptions extends ScionManagerOptions {
+export interface WinnowOptions extends WinnowManagerOptions {
 	gitStatus?: (cwd: string) => Promise<readonly string[]>;
 }
 
-const SCION_STATUS_LABEL = "♧ scion";
-export const SCION_FIND_TOOLS = "scion_find_tools";
+const WINNOW_STATUS_LABEL = "♧ winnow";
+export const WINNOW_FIND_TOOLS = "winnow_find_tools";
 
 function budgetTools(tools: readonly ToolInfo[]): { name: string; builtin: boolean }[] {
 	return tools.map((tool) => ({ name: tool.name, builtin: tool.sourceInfo.source === "builtin" }));
 }
 
-/** Rough schema cost of the tools Scion left out of the request. */
+/** Rough schema cost of the tools Winnow left out of the request. */
 function estimatedToolTokens(tools: readonly ToolInfo[], names: readonly string[]): number {
 	const dropped = new Set(names);
 	const bytes = tools
@@ -71,8 +71,8 @@ function fileReadTool(options: BuildSystemPromptOptions): "read" | "bash" | unde
 	return undefined;
 }
 
-function formatSnapshot(snapshot: ScionSnapshot | undefined): string {
-	if (!snapshot) return "Scion has not routed a turn yet.";
+function formatSnapshot(snapshot: WinnowSnapshot | undefined): string {
+	if (!snapshot) return "Winnow has not routed a turn yet.";
 	const selected = snapshot.selectedNames.length > 0 ? snapshot.selectedNames.join(", ") : "none";
 	const linkedTools = snapshot.linkedToolNames.length > 0 ? snapshot.linkedToolNames.join(", ") : "none";
 	const skillsSynced = snapshot.diagnostics.length === 0 && snapshot.disabledNodeCount === 0;
@@ -95,7 +95,7 @@ function estimatedTokensRemoved(before: string, after: string): number {
 	return Math.max(0, Math.round((before.length - after.length) / 4));
 }
 
-function refreshStatus(ctx: ExtensionContext, snapshot: ScionSnapshot): void {
+function refreshStatus(ctx: ExtensionContext, snapshot: WinnowSnapshot): void {
 	const skills = snapshot.diagnostics.length === 0 && snapshot.disabledNodeCount === 0 ? "skills synced" : "skills issues";
 	const tools = snapshot.unavailableToolNames.length === 0 ? "tools synced" : "tools issues";
 	const perRequest = snapshot.estimatedTokensSavedPerRequest + snapshot.estimatedToolTokensSaved;
@@ -103,14 +103,14 @@ function refreshStatus(ctx: ExtensionContext, snapshot: ScionSnapshot): void {
 		? ` · ~${perRequest.toLocaleString()} tok/req · ~${snapshot.estimatedTokensSavedSession.toLocaleString()} tok session`
 		: "";
 	const withheld = snapshot.droppedToolNames.length > 0 ? ` · ${snapshot.droppedToolNames.length} tools withheld` : "";
-	ctx.ui.setStatus("scion", `${SCION_STATUS_LABEL}: ${snapshot.mode} · ${skills} · ${tools}${withheld}${savings}`);
+	ctx.ui.setStatus("winnow", `${WINNOW_STATUS_LABEL}: ${snapshot.mode} · ${skills} · ${tools}${withheld}${savings}`);
 }
 
-function formatExplanation(snapshot: ScionSnapshot | undefined): string {
-	if (!snapshot) return "Scion has not routed a turn yet.";
+function formatExplanation(snapshot: WinnowSnapshot | undefined): string {
+	if (!snapshot) return "Winnow has not routed a turn yet.";
 	const lines = [formatSnapshot(snapshot)];
 	if (snapshot.droppedToolNames.length > 0) {
-		lines.push("", `Withheld tools (call ${SCION_FIND_TOOLS} to restore):`, ...snapshot.droppedToolNames.map((name) => `- ${name}`));
+		lines.push("", `Withheld tools (call ${WINNOW_FIND_TOOLS} to restore):`, ...snapshot.droppedToolNames.map((name) => `- ${name}`));
 	}
 	if (snapshot.changedPaths.length > 0) lines.push("", "Changed paths:", ...snapshot.changedPaths.map((path) => `- ${path}`));
 	if (snapshot.matches.length > 0) {
@@ -127,12 +127,12 @@ function formatExplanation(snapshot: ScionSnapshot | undefined): string {
 	return lines.join("\n");
 }
 
-export function initializeScion(pi: ExtensionAPI, options: ScionOptions = {}): void {
-	const manager = new ScionManager(options);
+export function initializeWinnow(pi: ExtensionAPI, options: WinnowOptions = {}): void {
+	const manager = new WinnowManager(options);
 	const changedByTools = new Set<string>();
-	let latest: ScionSnapshot | undefined;
+	let latest: WinnowSnapshot | undefined;
 	let estimatedTokensSavedSession = 0;
-	// The active set Pi built, captured once before Scion narrows it.
+	// The active set Pi built, captured once before Winnow narrows it.
 	let baselineToolNames: readonly string[] | undefined;
 	// Grows only, so a provider can keep reusing the cached prompt prefix.
 	const activatedToolNames = new Set<string>();
@@ -142,9 +142,9 @@ export function initializeScion(pi: ExtensionAPI, options: ScionOptions = {}): v
 		if (loaderRegistered) return;
 		loaderRegistered = true;
 		pi.registerTool({
-			name: SCION_FIND_TOOLS,
+			name: WINNOW_FIND_TOOLS,
 			label: "Find Tools",
-			description: "Search the tools Scion withheld from this request and activate the best matches. Call this when a task needs a capability the active tools do not provide.",
+			description: "Search the tools Winnow withheld from this request and activate the best matches. Call this when a task needs a capability the active tools do not provide.",
 			parameters: Type.Object({
 				query: Type.String({ description: "What the tool needs to do, in plain words." }),
 				limit: Type.Optional(Type.Number({ description: "How many tools to activate. Defaults to 3." })),
@@ -196,7 +196,7 @@ export function initializeScion(pi: ExtensionAPI, options: ScionOptions = {}): v
 			changedPaths,
 			...(explicitSkillName ? { explicitSkillName } : {}),
 		});
-		const config = loadScionConfig(ctx.cwd, ctx.isProjectTrusted());
+		const config = loadWinnowConfig(ctx.cwd, ctx.isProjectTrusted());
 		if (config.mode === "mask" && config.tools === "linked") registerLoader();
 		const allTools = pi.getAllTools();
 		const availableToolNames = allTools.map((tool) => tool.name);
@@ -211,7 +211,7 @@ export function initializeScion(pi: ExtensionAPI, options: ScionOptions = {}): v
 				baselineNames: baselineToolNames,
 				linkedNames: toolRoute.linkedToolNames,
 				activatedNames: [...activatedToolNames],
-				loaderName: SCION_FIND_TOOLS,
+				loaderName: WINNOW_FIND_TOOLS,
 			});
 			droppedToolNames = plan.droppedNames;
 			pi.setActiveTools([...plan.keepNames]);
@@ -276,24 +276,24 @@ export function initializeScion(pi: ExtensionAPI, options: ScionOptions = {}): v
 		estimatedTokensSavedSession = 0;
 		baselineToolNames = undefined;
 		activatedToolNames.clear();
-		ctx.ui.setStatus("scion", `${SCION_STATUS_LABEL}: waiting for first prompt`);
+		ctx.ui.setStatus("winnow", `${WINNOW_STATUS_LABEL}: waiting for first prompt`);
 	});
 
-	pi.registerCommand("scion:status", {
-		description: "Show Scion mode, selected skills, linked tools, savings, and timing",
+	pi.registerCommand("winnow:status", {
+		description: "Show Winnow mode, selected skills, linked tools, savings, and timing",
 		handler: async (_args, ctx) => {
 			ctx.ui.notify(formatSnapshot(latest), "info");
 		},
 	});
 
-	pi.registerCommand("scion:explain", {
-		description: "Explain Scion's latest skill and tool selection",
+	pi.registerCommand("winnow:explain", {
+		description: "Explain Winnow's latest skill and tool selection",
 		handler: async (_args, ctx) => {
 			ctx.ui.notify(formatExplanation(latest), "info");
 		},
 	});
 
-	pi.registerCommand("scion:reindex", {
+	pi.registerCommand("winnow:reindex", {
 		description: "Delete the skill metadata cache and rebuild the dependency graph",
 		handler: async (_args, ctx) => {
 			manager.invalidate(ctx.cwd);

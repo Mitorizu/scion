@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { rankTools, type SearchableTool } from "../src/tool-search.js";
 
-// The tools Scion withheld in the live capture that first exposed the problem.
+// The tools Winnow withheld in the live capture that first exposed the problem.
 const WITHHELD: SearchableTool[] = [
 	{ name: "grep", description: "Search file contents for a pattern. Returns matching lines with file paths and line numbers." },
 	{ name: "find", description: "Search for files by glob pattern. Returns matching file paths relative to the search directory." },

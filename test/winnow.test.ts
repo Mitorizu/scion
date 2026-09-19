@@ -9,9 +9,9 @@ import {
 	type Skill,
 } from "@earendil-works/pi-coding-agent";
 import { afterEach, describe, expect, it } from "vitest";
-import scion, { initializeScion, parseGitStatusPaths, SCION_FIND_TOOLS } from "../src/index.js";
+import winnow, { initializeWinnow, parseGitStatusPaths, WINNOW_FIND_TOOLS } from "../src/index.js";
 import { buildSkillDependencyGraph, indexSkillDirectory, indexSkills, parseSkillMetadata } from "../src/indexer.js";
-import { loadScionConfig, maskSkillCatalog, ScionManager } from "../src/manager.js";
+import { loadWinnowConfig, maskSkillCatalog, WinnowManager } from "../src/manager.js";
 import { resolveLinkedTools, routeSkills } from "../src/router.js";
 import type { SkillDependencyGraph, SkillMetadataResult, SkillNode } from "../src/types.js";
 
@@ -43,7 +43,7 @@ async function createSkill(root: string, name: string, description: string, meta
 
 describe("skill graph indexing", () => {
 	it("parses dependencies, regex triggers, and literal triggers", async () => {
-		const root = await temporaryDirectory("scion-skills-");
+		const root = await temporaryDirectory("winnow-skills-");
 		const base = await createSkill(root, "systems-review", "Review systems code.");
 		const rust = await createSkill(root, "rust-review", "Review Rust code.", `allowed-tools: rust_analyzer\nmetadata:\n  depends_on:\n    - systems-review\n  domain_trigger:\n    - '\\.rs$'\n    - match: Cargo.toml\n`);
 		expect(parseSkillMetadata(rust).metadata).toEqual({
@@ -61,7 +61,7 @@ describe("skill graph indexing", () => {
 	});
 
 	it("rejects malformed allowed-tools fields", async () => {
-		const root = await temporaryDirectory("scion-skills-");
+		const root = await temporaryDirectory("winnow-skills-");
 		const skill = await createSkill(root, "bad-tools", "Bad tool metadata.", "allowed-tools: [read]\n");
 		const result = parseSkillMetadata(skill);
 		expect(result.metadata).toBeUndefined();
@@ -69,7 +69,7 @@ describe("skill graph indexing", () => {
 	});
 
 	it("rejects unsafe domain trigger regexes", async () => {
-		const root = await temporaryDirectory("scion-skills-");
+		const root = await temporaryDirectory("winnow-skills-");
 		const skill = await createSkill(root, "unsafe-regex", "Unsafe regex.", "metadata:\n  domain_trigger: ['(a+)+$']\n");
 		const graph = indexSkills([skill]);
 		expect(graph.disabledNodes.has("unsafe-regex")).toBe(true);
@@ -77,7 +77,7 @@ describe("skill graph indexing", () => {
 	});
 
 	it("disables missing dependencies, cycles, and closures over budget", async () => {
-		const root = await temporaryDirectory("scion-skills-");
+		const root = await temporaryDirectory("winnow-skills-");
 		const missing = await createSkill(root, "missing-user", "Needs an absent skill.", "metadata:\n  depends_on: [absent]\n");
 		const cycleA = await createSkill(root, "cycle-a", "Cycle A.", "metadata:\n  depends_on: [cycle-b]\n");
 		const cycleB = await createSkill(root, "cycle-b", "Cycle B.", "metadata:\n  depends_on: [cycle-a]\n");
@@ -105,7 +105,7 @@ describe("skill graph indexing", () => {
 
 describe("skill routing", () => {
 	it("ranks domain matches and includes dependencies", async () => {
-		const root = await temporaryDirectory("scion-skills-");
+		const root = await temporaryDirectory("winnow-skills-");
 		const base = await createSkill(root, "systems-review", "Review architecture boundaries.");
 		const rust = await createSkill(root, "rust-review", "Review Rust ownership and lifetimes.", "metadata:\n  depends_on: [systems-review]\n  domain_trigger: ['\\.rs$']\n");
 		const docs = await createSkill(root, "documentation", "Write user documentation.", "metadata:\n  domain_trigger:\n    - match: README.md\n");
@@ -120,7 +120,7 @@ describe("skill routing", () => {
 	});
 
 	it("resolves linked tools from selected skills and their dependencies", async () => {
-		const root = await temporaryDirectory("scion-skills-");
+		const root = await temporaryDirectory("winnow-skills-");
 		const base = await createSkill(root, "systems-review", "Review architecture.", "allowed-tools: read\n");
 		const rust = await createSkill(root, "rust-review", "Review Rust ownership.", "allowed-tools: rust_analyzer missing_tool\nmetadata:\n  depends_on: [systems-review]\n");
 		const graph = indexSkills([base, rust]);
@@ -132,7 +132,7 @@ describe("skill routing", () => {
 	});
 
 	it("routes a manual skill only when it was explicitly invoked", async () => {
-		const root = await temporaryDirectory("scion-skills-");
+		const root = await temporaryDirectory("winnow-skills-");
 		const manual = await createSkill(root, "release", "Publish a release.", "allowed-tools: publish_release\n");
 		manual.disableModelInvocation = true;
 		const graph = indexSkills([manual]);
@@ -146,7 +146,7 @@ describe("skill routing", () => {
 	});
 
 	it("returns no skills when the context has no match", async () => {
-		const root = await temporaryDirectory("scion-skills-");
+		const root = await temporaryDirectory("winnow-skills-");
 		const rust = await createSkill(root, "rust-review", "Review Rust ownership.", "metadata:\n  domain_trigger: ['\\.rs$']\n");
 		const result = routeSkills(indexSkills([rust]), { prompt: "Say hello", changedPaths: [] });
 		expect(result.selectedNames).toEqual([]);
@@ -181,13 +181,13 @@ describe("skill routing", () => {
 	});
 });
 
-describe("Scion manager", () => {
+describe("Winnow manager", () => {
 	it("loads cached metadata without reading a different graph shape", async () => {
-		const root = await temporaryDirectory("scion-skills-");
-		const cacheRoot = await temporaryDirectory("scion-skill-cache-");
+		const root = await temporaryDirectory("winnow-skills-");
+		const cacheRoot = await temporaryDirectory("winnow-skill-cache-");
 		const skill = await createSkill(root, "rust-review", "Review Rust.", "allowed-tools: rust_analyzer\nmetadata:\n  domain_trigger: ['\\.rs$']\n");
-		const first = new ScionManager({ cacheRoot }).loadGraph(root, [skill]);
-		const second = new ScionManager({ cacheRoot }).loadGraph(root, [skill]);
+		const first = new WinnowManager({ cacheRoot }).loadGraph(root, [skill]);
+		const second = new WinnowManager({ cacheRoot }).loadGraph(root, [skill]);
 		expect(first.fromCache).toBe(false);
 		expect(second.fromCache).toBe(true);
 		expect(second.graph.nodes.get("rust-review")?.domainTriggers).toEqual(first.graph.nodes.get("rust-review")?.domainTriggers);
@@ -198,7 +198,7 @@ describe("Scion manager", () => {
 	});
 
 	it("masks only Pi's generated skill catalog", async () => {
-		const root = await temporaryDirectory("scion-skills-");
+		const root = await temporaryDirectory("winnow-skills-");
 		const rust = await createSkill(root, "rust-review", "Review Rust.");
 		const docs = await createSkill(root, "documentation", "Write documentation.");
 		const catalog = formatSkillsForPrompt([rust, docs], "read");
@@ -211,29 +211,29 @@ describe("Scion manager", () => {
 	});
 
 	it("enables masking only for a trusted project configuration", async () => {
-		const root = await temporaryDirectory("scion-project-");
+		const root = await temporaryDirectory("winnow-project-");
 		await mkdir(join(root, ".pi"), { recursive: true });
-		await writeFile(join(root, ".pi", "scion.json"), '{"mode":"mask"}\n');
-		expect(loadScionConfig(root, true)).toEqual({ mode: "mask", tools: "all" });
-		expect(loadScionConfig(root, false)).toEqual({ mode: "observe", tools: "all" });
+		await writeFile(join(root, ".pi", "winnow.json"), '{"mode":"mask"}\n');
+		expect(loadWinnowConfig(root, true)).toEqual({ mode: "mask", tools: "all" });
+		expect(loadWinnowConfig(root, false)).toEqual({ mode: "observe", tools: "all" });
 	});
 
 	it("reads the tool policy only when masking is on", async () => {
-		const root = await temporaryDirectory("scion-project-");
+		const root = await temporaryDirectory("winnow-project-");
 		await mkdir(join(root, ".pi"), { recursive: true });
 
-		await writeFile(join(root, ".pi", "scion.json"), '{"mode":"mask","tools":"linked"}\n');
-		expect(loadScionConfig(root, true)).toEqual({ mode: "mask", tools: "linked" });
+		await writeFile(join(root, ".pi", "winnow.json"), '{"mode":"mask","tools":"linked"}\n');
+		expect(loadWinnowConfig(root, true)).toEqual({ mode: "mask", tools: "linked" });
 
-		await writeFile(join(root, ".pi", "scion.json"), '{"mode":"observe","tools":"linked"}\n');
-		expect(loadScionConfig(root, true)).toEqual({ mode: "observe", tools: "all" });
+		await writeFile(join(root, ".pi", "winnow.json"), '{"mode":"observe","tools":"linked"}\n');
+		expect(loadWinnowConfig(root, true)).toEqual({ mode: "observe", tools: "all" });
 
-		await writeFile(join(root, ".pi", "scion.json"), '{"mode":"mask","tools":"nonsense"}\n');
-		expect(loadScionConfig(root, true)).toEqual({ mode: "mask", tools: "all" });
+		await writeFile(join(root, ".pi", "winnow.json"), '{"mode":"mask","tools":"nonsense"}\n');
+		expect(loadWinnowConfig(root, true)).toEqual({ mode: "mask", tools: "all" });
 	});
 });
 
-describe("Scion extension", () => {
+describe("Winnow extension", () => {
 	it("parses staged, modified, deleted, untracked, and renamed Git paths", () => {
 		expect(parseGitStatusPaths("M  staged.ts\0 M modified.ts\0D  deleted.ts\0?? new.ts\0R  renamed.ts\0old.ts\0")).toEqual([
 			"staged.ts",
@@ -246,10 +246,10 @@ describe("Scion extension", () => {
 	});
 
 	it("masks the catalog before an agent turn when trusted project configuration enables it", async () => {
-		const root = await temporaryDirectory("scion-project-");
-		const cacheRoot = await temporaryDirectory("scion-skill-cache-");
+		const root = await temporaryDirectory("winnow-project-");
+		const cacheRoot = await temporaryDirectory("winnow-skill-cache-");
 		await mkdir(join(root, ".pi"), { recursive: true });
-		await writeFile(join(root, ".pi", "scion.json"), '{"mode":"mask"}\n');
+		await writeFile(join(root, ".pi", "winnow.json"), '{"mode":"mask"}\n');
 		const base = await createSkill(root, "systems-review", "Review architecture boundaries.");
 		const rust = await createSkill(root, "rust-review", "Review Rust ownership.", "allowed-tools: rust_analyzer missing_tool\nmetadata:\n  depends_on: [systems-review]\n  domain_trigger: ['\\.rs$']\n");
 		const docs = await createSkill(root, "documentation", "Write documentation.");
@@ -275,7 +275,7 @@ describe("Scion extension", () => {
 			},
 			exec: async () => ({ stdout: "", stderr: "", code: 0, killed: false }),
 		};
-		initializeScion(api as unknown as ExtensionAPI, {
+		initializeWinnow(api as unknown as ExtensionAPI, {
 			cacheRoot,
 			gitStatus: async () => ["src/lib.rs"],
 		});
@@ -294,39 +294,39 @@ describe("Scion extension", () => {
 			},
 		} as unknown as ExtensionContext;
 		await (handlers.get("session_start") as (event: unknown, context: ExtensionContext) => Promise<void>)({}, context);
-		expect(statuses).toEqual([["scion", "♧ scion: waiting for first prompt"]]);
+		expect(statuses).toEqual([["winnow", "♧ winnow: waiting for first prompt"]]);
 		const result = await (handlers.get("before_agent_start") as BeforeHandler)(event, context);
 		expect(result?.systemPrompt).toContain("rust-review");
 		expect(result?.systemPrompt).toContain("systems-review");
 		expect(result?.systemPrompt).not.toContain("documentation");
 		const estimatedTokens = Math.round((event.systemPrompt.length - result!.systemPrompt.length) / 4);
 		expect(statuses.at(-1)).toEqual([
-			"scion",
-			`♧ scion: mask · skills synced · tools issues · ~${estimatedTokens.toLocaleString()} tok/req · ~0 tok session`,
+			"winnow",
+			`♧ winnow: mask · skills synced · tools issues · ~${estimatedTokens.toLocaleString()} tok/req · ~0 tok session`,
 		]);
 		await (handlers.get("turn_start") as (event: unknown, context: ExtensionContext) => Promise<void>)({}, context);
 		expect(statuses.at(-1)).toEqual([
-			"scion",
-			`♧ scion: mask · skills synced · tools issues · ~${estimatedTokens.toLocaleString()} tok/req · ~${estimatedTokens.toLocaleString()} tok session`,
+			"winnow",
+			`♧ winnow: mask · skills synced · tools issues · ~${estimatedTokens.toLocaleString()} tok/req · ~${estimatedTokens.toLocaleString()} tok session`,
 		]);
 		expect(setActiveTools).toEqual([["read", "rust_analyzer"]]);
 		expect(activeTools).toEqual(["read", "rust_analyzer"]);
-		await commands.get("scion:status")?.handler("", context);
+		await commands.get("winnow:status")?.handler("", context);
 		expect(notifications.at(-1)).toContain("Skills: synced");
 		expect(notifications.at(-1)).toContain("Tools: issues (2 declared; selected: rust_analyzer)");
 		expect(notifications.at(-1)).toContain(`~${estimatedTokens.toLocaleString()} tokens/session`);
 		expect([...commands.keys()]).toEqual([
-			"scion:status",
-			"scion:explain",
-			"scion:reindex",
+			"winnow:status",
+			"winnow:explain",
+			"winnow:reindex",
 		]);
 	});
 
 	it("activates linked tools for an explicitly invoked manual skill", async () => {
-		const root = await temporaryDirectory("scion-project-");
-		const cacheRoot = await temporaryDirectory("scion-skill-cache-");
+		const root = await temporaryDirectory("winnow-project-");
+		const cacheRoot = await temporaryDirectory("winnow-skill-cache-");
 		await mkdir(join(root, ".pi"), { recursive: true });
-		await writeFile(join(root, ".pi", "scion.json"), '{"mode":"mask"}\n');
+		await writeFile(join(root, ".pi", "winnow.json"), '{"mode":"mask"}\n');
 		const manual = await createSkill(root, "release", "Publish a release.", "allowed-tools: publish_release\n");
 		manual.disableModelInvocation = true;
 		type BeforeHandler = (
@@ -343,7 +343,7 @@ describe("Scion extension", () => {
 			setActiveTools: (names: string[]) => { activeTools = names; },
 			exec: async () => ({ stdout: "", stderr: "", code: 0, killed: false }),
 		};
-		initializeScion(api as unknown as ExtensionAPI, { cacheRoot, gitStatus: async () => [] });
+		initializeWinnow(api as unknown as ExtensionAPI, { cacheRoot, gitStatus: async () => [] });
 		const event = {
 			prompt: `<skill name="release" location="${manual.filePath}">\nRelease instructions\n</skill>`,
 			systemPrompt: "Header",
@@ -362,10 +362,10 @@ describe("Scion extension", () => {
 
 describe("tool budget in a live turn", () => {
 	it("withholds unrelated tools and restores them through the discovery tool", async () => {
-		const root = await temporaryDirectory("scion-project-");
-		const cacheRoot = await temporaryDirectory("scion-skill-cache-");
+		const root = await temporaryDirectory("winnow-project-");
+		const cacheRoot = await temporaryDirectory("winnow-skill-cache-");
 		await mkdir(join(root, ".pi"), { recursive: true });
-		await writeFile(join(root, ".pi", "scion.json"), '{"mode":"mask","tools":"linked"}\n');
+		await writeFile(join(root, ".pi", "winnow.json"), '{"mode":"mask","tools":"linked"}\n');
 		const rust = await createSkill(root, "rust-review", "Review Rust ownership.", "allowed-tools: rust_analyzer\nmetadata:\n  domain_trigger: ['\\.rs$']\n");
 		type BeforeHandler = (
 			event: { prompt: string; systemPrompt: string; systemPromptOptions: BuildSystemPromptOptions },
@@ -399,7 +399,7 @@ describe("tool budget in a live turn", () => {
 			setActiveTools: (names: string[]) => { activeTools = names; },
 			exec: async () => ({ stdout: "", stderr: "", code: 0, killed: false }),
 		};
-		initializeScion(api as unknown as ExtensionAPI, { cacheRoot, gitStatus: async () => ["src/lib.rs"] });
+		initializeWinnow(api as unknown as ExtensionAPI, { cacheRoot, gitStatus: async () => ["src/lib.rs"] });
 		const context = {
 			cwd: root,
 			isProjectTrusted: () => true,
@@ -415,10 +415,10 @@ describe("tool budget in a live turn", () => {
 		await (handlers.get("before_agent_start") as BeforeHandler)(event, context);
 
 		// Built-ins and the skill's linked tool survive; the unrelated tool does not.
-		expect(activeTools).toEqual(["read", "bash", "rust_analyzer", SCION_FIND_TOOLS]);
+		expect(activeTools).toEqual(["read", "bash", "rust_analyzer", WINNOW_FIND_TOOLS]);
 		expect(activeTools).not.toContain("github_search");
 
-		const loader = registered.find((tool) => tool.name === SCION_FIND_TOOLS);
+		const loader = registered.find((tool) => tool.name === WINNOW_FIND_TOOLS);
 		expect(loader).toBeDefined();
 		const result = await loader!.execute("call-1", { query: "search GitHub issues", limit: 1 });
 		expect(result.content[0]?.text).toContain("github_search");
@@ -431,7 +431,7 @@ describe("tool budget in a live turn", () => {
 });
 
 describe("package entry point", () => {
-	it("registers Scion's handlers and commands through the default export", () => {
+	it("registers Winnow's handlers and commands through the default export", () => {
 		const handlers: string[] = [];
 		const commands: string[] = [];
 		const api = {
@@ -443,16 +443,16 @@ describe("package entry point", () => {
 			exec: async () => ({ stdout: "", stderr: "", code: 0, killed: false }),
 		};
 
-		scion(api as unknown as ExtensionAPI);
+		winnow(api as unknown as ExtensionAPI);
 
 		expect(handlers).toEqual(["before_agent_start", "turn_start", "tool_result", "session_start"]);
-		expect(commands).toEqual(["scion:status", "scion:explain", "scion:reindex"]);
+		expect(commands).toEqual(["winnow:status", "winnow:explain", "winnow:reindex"]);
 	});
 });
 
 describe("graph construction from cached metadata", () => {
 	it("accepts pre-parsed metadata", async () => {
-		const root = await temporaryDirectory("scion-skills-");
+		const root = await temporaryDirectory("winnow-skills-");
 		const skill = await createSkill(root, "typescript", "Work with TypeScript.");
 		const metadata = new Map<string, SkillMetadataResult>([
 			["typescript", { metadata: { dependsOn: [], domainTriggers: [{ kind: "regex", pattern: "\\.ts$" }], toolNames: [] }, diagnostics: [] }],

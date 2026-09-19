@@ -26,7 +26,7 @@ import {
 	DEFAULT_MAX_ACTIVE_SKILLS,
 	type DomainTriggerSpec,
 	type ParsedSkillMetadata,
-	type ScionConfig,
+	type WinnowConfig,
 	type ToolPolicy,
 	type SkillDependencyGraph,
 	type SkillGraphDiagnostic,
@@ -72,7 +72,7 @@ export interface PromptMaskResult {
 	masked: boolean;
 }
 
-export interface ScionManagerOptions {
+export interface WinnowManagerOptions {
 	cacheRoot?: string;
 	maxActiveSkills?: number;
 	now?: () => number;
@@ -195,7 +195,7 @@ function sameSnapshots(left: readonly SkillFileSnapshot[], right: readonly Skill
 }
 
 function configPath(cwd: string): string {
-	return join(cwd, CONFIG_DIR_NAME, "scion.json");
+	return join(cwd, CONFIG_DIR_NAME, "winnow.json");
 }
 
 function decodeToolPolicy(value: unknown): ToolPolicy {
@@ -206,8 +206,8 @@ function decodeToolPolicy(value: unknown): ToolPolicy {
  * Observe mode changes nothing, so a tool policy is only read once masking is
  * on. That keeps "observe" a single promise rather than a per-surface matrix.
  */
-export function loadScionConfig(cwd: string, projectTrusted: boolean): ScionConfig {
-	const observe: ScionConfig = { mode: "observe", tools: "all" };
+export function loadWinnowConfig(cwd: string, projectTrusted: boolean): WinnowConfig {
+	const observe: WinnowConfig = { mode: "observe", tools: "all" };
 	if (!projectTrusted) return observe;
 	try {
 		const value = JSON.parse(readFileSync(configPath(cwd), "utf8")) as unknown;
@@ -236,15 +236,15 @@ export function maskSkillCatalog(
 	};
 }
 
-export class ScionManager {
+export class WinnowManager {
 	private readonly cacheRoot: string;
 	private readonly maxActiveSkills: number;
 	private readonly now: () => number;
 	private graphKey: string | undefined;
 	private graph: SkillDependencyGraph | undefined;
 
-	constructor(options: ScionManagerOptions = {}) {
-		this.cacheRoot = options.cacheRoot ?? join(homedir(), ".cache", "scion");
+	constructor(options: WinnowManagerOptions = {}) {
+		this.cacheRoot = options.cacheRoot ?? join(homedir(), ".cache", "winnow");
 		this.maxActiveSkills = options.maxActiveSkills ?? DEFAULT_MAX_ACTIVE_SKILLS;
 		this.now = options.now ?? performance.now.bind(performance);
 	}

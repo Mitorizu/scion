@@ -2,7 +2,7 @@ import type { Skill } from "@earendil-works/pi-coding-agent";
 
 export const DEFAULT_MAX_ACTIVE_SKILLS = 5;
 
-export type ScionMode = "observe" | "mask";
+export type WinnowMode = "observe" | "mask";
 
 export type DomainTriggerSpec =
 	| { kind: "regex"; pattern: string }
@@ -115,13 +115,13 @@ export interface ToolBudgetResult {
 	droppedNames: readonly string[];
 }
 
-export interface ScionConfig {
-	mode: ScionMode;
+export interface WinnowConfig {
+	mode: WinnowMode;
 	tools: ToolPolicy;
 }
 
-export interface ScionSnapshot {
-	mode: ScionMode;
+export interface WinnowSnapshot {
+	mode: WinnowMode;
 	selectedNames: readonly string[];
 	matches: readonly SkillRouteMatch[];
 	linkedToolNames: readonly string[];

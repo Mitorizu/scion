@@ -1,29 +1,29 @@
-# Scion
+# Winnow
 
-Scion is a [Pi](https://github.com/earendil-works/pi) extension that shrinks every model request by sending only the skills and tools the current turn needs.
+Winnow is a [Pi](https://github.com/earendil-works/pi) extension that shrinks every model request by sending only the skills and tools the current turn needs.
 
-Pi lists every installed skill and every registered tool on every request. You pay for all of them whether the turn uses one or none, and the bill grows each time you install something. Scion ranks both before the request goes out and leaves the rest behind.
+Pi lists every installed skill and every registered tool on every request. You pay for all of them whether the turn uses one or none, and the bill grows each time you install something. Winnow ranks both before the request goes out and leaves the rest behind.
 
 ## What it saves
 
-On the benchmark in this repository, a request drops from 13,453 characters to 8,145. That is **39% smaller, about 1,300 tokens per request**, on every turn of every session.
+On the benchmark in this repository, a request drops from 13,453 characters to 8,147. That is **39% smaller, about 1,300 tokens per request**, on every turn of every session.
 
 | setting | request | tool schemas | skill catalog |
 |---|---|---|---|
 | `observe`, the default | 13,453 | 8,062 (18 tools) | 2,005 |
 | `mask`, skills only | 11,946 | 8,062 (18 tools) | 528 |
-| `mask`, skills and tools | **8,145** | **4,261 (7 tools)** | 528 |
+| `mask`, skills and tools | **8,147** | **4,263 (7 tools)** | 528 |
 
 Most of the win is tools, not skills. Tool schemas were 60% of that request and the skill catalog was 15%.
 
 Run `bash bench/run.sh` to reproduce the table. It records what Pi sends to a local endpoint and calls no model. See [the benchmark guide](bench/README.md) for how to measure your own skills and tools instead.
 
-Your numbers depend on how many tools your extensions register and how few of them a turn needs. Start in `observe` mode, which changes nothing, and watch what Scion would have done.
+Your numbers depend on how many tools your extensions register and how few of them a turn needs. Start in `observe` mode, which changes nothing, and watch what Winnow would have done.
 
 ## Install
 
 ```bash
-pi install npm:@mitorizu/scion
+pi install npm:@mitorizu/winnow
 ```
 
 Or install from a checkout:
@@ -32,11 +32,11 @@ Or install from a checkout:
 pi install git:github.com/Mitorizu/scion
 ```
 
-Scion starts in `observe` mode. It records routing decisions and changes no request.
+Winnow starts in `observe` mode. It records routing decisions and changes no request.
 
 ## Turn it on
 
-To mask the skill catalog, create `.pi/scion.json` in a trusted project:
+To mask the skill catalog, create `.pi/winnow.json` in a trusted project:
 
 ```json
 {
@@ -44,7 +44,7 @@ To mask the skill catalog, create `.pi/scion.json` in a trusted project:
 }
 ```
 
-Scion now sends at most five matching skills instead of the whole catalog. The model still opens a selected skill's full `SKILL.md` through Pi's normal progressive disclosure, so a correctly routed skill loses nothing. Skill files and explicit `/skill:name` commands keep working. If no skill matches, the catalog is empty.
+Winnow now sends at most five matching skills instead of the whole catalog. The model still opens a selected skill's full `SKILL.md` through Pi's normal progressive disclosure, so a correctly routed skill loses nothing. Skill files and explicit `/skill:name` commands keep working. If no skill matches, the catalog is empty.
 
 To withhold tool schemas as well, add a tool policy:
 
@@ -55,22 +55,22 @@ To withhold tool schemas as well, add a tool policy:
 }
 ```
 
-Under `linked`, a request carries Pi's built-in tools, the tools that selected skills name in `allowed-tools`, and every tool already activated this session. Scion withholds the rest. The default, `all`, keeps Scion's older behavior of only ever adding linked tools.
+Under `linked`, a request carries Pi's built-in tools, the tools that selected skills name in `allowed-tools`, and every tool already activated this session. Winnow withholds the rest. The default, `all`, keeps Winnow's older behavior of only ever adding linked tools.
 
-Withheld tools are still reachable. Scion registers `scion_find_tools`, and the model calls it to search what was withheld and switch the matches on:
+Withheld tools are still reachable. Winnow registers `winnow_find_tools`, and the model calls it to search what was withheld and switch the matches on:
 
 ```
-scion_find_tools({ query: "find open pull requests in the issue tracker", limit: 2 })
+winnow_find_tools({ query: "find open pull requests in the issue tracker", limit: 2 })
 -> Activated 2 tool(s):
    - issue_search: Search the issue tracker for issues and pull requests by keyword, label, author, or state.
    - issue_list_projects: List the projects and repositories the issue tracker credential can reach.
 ```
 
-To go back to observing, delete the file or set `mode` to `observe`. Scion ignores project configuration until Pi trusts the project.
+To go back to observing, delete the file or set `mode` to `observe`. Winnow ignores project configuration until Pi trusts the project.
 
 ## Configure a skill
 
-Scion reads routing metadata from the standard `metadata` frontmatter field:
+Winnow reads routing metadata from the standard `metadata` frontmatter field:
 
 ```yaml
 ---
@@ -88,44 +88,44 @@ metadata:
 
 The fields mean this:
 
-- `depends_on` names skills that Scion must select together with this skill.
+- `depends_on` names skills that Winnow must select together with this skill.
 - `domain_trigger` matches paths from the prompt, from Git status, and from Pi's file edits.
 - `allowed-tools` is the Agent Skills field for a space-delimited list of tool names.
 
-Write a domain trigger as a JavaScript regular expression, as `{ regex: 'pattern' }`, or as `{ match: 'literal text' }`. Scion rejects an invalid expression, an expression longer than 256 characters, and an expression its safety check flags.
+Write a domain trigger as a JavaScript regular expression, as `{ regex: 'pattern' }`, or as `{ match: 'literal text' }`. Winnow rejects an invalid expression, an expression longer than 256 characters, and an expression its safety check flags.
 
 Name tools by their stable registered names, such as `read` or `bash`. A generated MCP proxy name changes between runs, so link the stable discovery tool instead. Give a linked tool its instructions in the tool description rather than in an active-only prompt snippet.
 
 Invalid metadata disables the affected skill. So do a missing dependency, a dependency cycle, and a dependency closure larger than five. A skill with no metadata stays eligible for keyword matching.
 
-## Inspect what Scion did
+## Inspect what Winnow did
 
-At session start the footer reads `waiting for first prompt`. After the first turn it shows the mode, whether skills and tools are in sync, how many tools Scion withheld, and the estimated savings for the request and the session.
+At session start the footer reads `waiting for first prompt`. After the first turn it shows the mode, whether skills and tools are in sync, how many tools Winnow withheld, and the estimated savings for the request and the session.
 
 Skills are in sync when no skill is disabled and no metadata diagnostic fired. Tools are in sync when every `allowed-tools` name resolves to a tool Pi has registered.
 
 Three commands report the detail:
 
-- `/scion:status` gives counts, timing, selected skills, linked tools, the tool policy, and savings.
-- `/scion:explain` adds withheld tools, the reason each skill was selected, changed paths, unavailable tools, and graph diagnostics.
-- `/scion:reindex` deletes the metadata cache and rebuilds the dependency graph.
+- `/winnow:status` gives counts, timing, selected skills, linked tools, the tool policy, and savings.
+- `/winnow:explain` adds withheld tools, the reason each skill was selected, changed paths, unavailable tools, and graph diagnostics.
+- `/winnow:reindex` deletes the metadata cache and rebuilds the dependency graph.
 
-Scion otherwise rebuilds cached metadata when a skill's path, description, timestamp, or size changes. Cache files live under `~/.cache/scion/`, use mode `0600`, and hold no skill bodies.
+Winnow otherwise rebuilds cached metadata when a skill's path, description, timestamp, or size changes. Cache files live under `~/.cache/winnow/`, use mode `0600`, and hold no skill bodies.
 
-## How Scion chooses
+## How Winnow chooses
 
-Scion ranks a skill on four signals, in descending weight:
+Winnow ranks a skill on four signals, in descending weight:
 
 1. The prompt names the skill.
 2. A domain trigger matches a changed path.
 3. An uncommon word from the skill's name appears in the prompt.
 4. An uncommon word from the skill's description appears in the prompt.
 
-A selected skill brings its `depends_on` closure with it. Scion fills up to five skills and stops.
+A selected skill brings its `depends_on` closure with it. Winnow fills up to five skills and stops.
 
-For tools, the active set only grows within a session. Scion never takes back a tool it activated, even when the next turn selects different skills. That costs some tokens and buys something worth more. Tool schemas sit at the front of a request, so replacing them every turn would invalidate the provider's cached prefix and charge full price for the whole payload. A set that only grows also lets Pi use native deferred loading on models that support it.
+For tools, the active set only grows within a session. Winnow never takes back a tool it activated, even when the next turn selects different skills. That costs some tokens and buys something worth more. Tool schemas sit at the front of a request, so replacing them every turn would invalidate the provider's cached prefix and charge full price for the whole payload. A set that only grows also lets Pi use native deferred loading on models that support it.
 
-`scion_find_tools` ranks withheld tools by inverse document frequency over their names and descriptions. Weighting by rarity is what keeps a query for "search GitHub issues" from returning `grep`, which matches only because both descriptions contain "search".
+`winnow_find_tools` ranks withheld tools by inverse document frequency over their names and descriptions. Weighting by rarity is what keeps a query for "search GitHub issues" from returning `grep`, which matches only because both descriptions contain "search".
 
 ## Limits
 
@@ -133,22 +133,22 @@ The router is lexical, not semantic. It matches names, paths, and uncommon words
 
 A withheld tool costs the model one round trip to recover, so a turn that needs an unusual tool runs slower.
 
-`scion_find_tools` matches whole words and does not stem them. A query for "runbook" does not match a description that says "runbooks". Write tool descriptions with the words a caller would use.
+`winnow_find_tools` matches whole words and does not stem them. A query for "runbook" does not match a description that says "runbooks". Write tool descriptions with the words a caller would use.
 
 A skill that links six tools keeps all six as soon as it is selected. Savings depend on how tightly your skills scope `allowed-tools`.
 
-Scion keeps a built-in tool only when Pi had it active, so a tool you disabled stays disabled.
+Winnow keeps a built-in tool only when Pi had it active, so a tool you disabled stays disabled.
 
 Savings figures are estimates at four characters per token. The skill figure counts characters removed from the catalog. The tool figure counts the schemas left out of the request.
 
-Skill routing is synchronous and local. A unit test routes 500 skills in under 50 ms. Reading Git status has a 35 ms timeout, after which Scion falls back to the paths changed through Pi's `edit` and `write` tools.
+Skill routing is synchronous and local. A unit test routes 500 skills in under 50 ms. Reading Git status has a 35 ms timeout, after which Winnow falls back to the paths changed through Pi's `edit` and `write` tools.
 
 ## Compile and search tool schemas
 
-Scion also ships the tool-schema utilities it was built alongside. `compileToolSchema` turns a direct or OpenAI-style JSON tool definition into a compact TypeScript declaration. It keeps descriptions as JSDoc, marks any field outside the JSON Schema `required` array as optional, turns enums into literal unions, and recurses through nested objects.
+Winnow also ships the tool-schema utilities it was built alongside. `compileToolSchema` turns a direct or OpenAI-style JSON tool definition into a compact TypeScript declaration. It keeps descriptions as JSDoc, marks any field outside the JSON Schema `required` array as optional, turns enums into literal unions, and recurses through nested objects.
 
 ```ts
-import { compileToolSchemaJson, parseToolDefinition, ToolIndex } from "@mitorizu/scion";
+import { compileToolSchemaJson, parseToolDefinition, ToolIndex } from "@mitorizu/winnow";
 
 const rawTool = JSON.stringify({
 	type: "function",
@@ -192,7 +192,7 @@ export interface WeatherLookupInput {
 }
 ```
 
-`ToolIndex` embeds each tool once and ranks queries by cosine similarity. Its default `HashingTextEmbedder` is a baseline with no dependencies. Pass a model-backed `TextEmbedder` for semantic matching. This is the path for callers who want to bring their own embedding model. Scion's own `scion_find_tools` does not use it, because inverse document frequency needs no model and ranks better on the small set of tools one session withholds.
+`ToolIndex` embeds each tool once and ranks queries by cosine similarity. Its default `HashingTextEmbedder` is a baseline with no dependencies. Pass a model-backed `TextEmbedder` for semantic matching. This is the path for callers who want to bring their own embedding model. Winnow's own `winnow_find_tools` does not use it, because inverse document frequency needs no model and ranks better on the small set of tools one session withholds.
 
 These utilities register nothing with Pi. A skill's `allowed-tools` field links to a tool after its owner registers it.
 
@@ -204,7 +204,7 @@ npm run typecheck
 npm test
 ```
 
-Scion needs Node 22.19 or newer. It imports `@earendil-works/pi-coding-agent` and `typebox` as peer dependencies, because Pi provides both at runtime.
+Winnow needs Node 22.19 or newer. It imports `@earendil-works/pi-coding-agent` and `typebox` as peer dependencies, because Pi provides both at runtime.
 
 ## License
 

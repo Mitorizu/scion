@@ -8,13 +8,13 @@ export interface BudgetTool {
 export interface ToolBudgetInput {
 	/** Every tool Pi has registered, tagged with whether Pi owns it. */
 	allTools: readonly BudgetTool[];
-	/** The active set as Pi built it, captured before Scion first changed it. */
+	/** The active set as Pi built it, captured before Winnow first changed it. */
 	baselineNames: readonly string[];
 	/** `allowed-tools` of the skills selected for this turn. */
 	linkedNames: readonly string[];
-	/** Tools Scion already activated earlier in this session. */
+	/** Tools Winnow already activated earlier in this session. */
 	activatedNames: readonly string[];
-	/** Scion's discovery tool, which stays active so dropped tools stay reachable. */
+	/** Winnow's discovery tool, which stays active so dropped tools stay reachable. */
 	loaderName: string;
 }
 
@@ -23,8 +23,8 @@ export interface ToolBudgetInput {
  *
  * Built-in tools are kept because the agent cannot work without them, but only
  * when Pi had them active: a user who disabled one keeps it disabled. Linked
- * tools are kept whether or not Pi had them active, which preserves Scion's
- * existing skill-to-tool activation. Everything Scion activated earlier in the
+ * tools are kept whether or not Pi had them active, which preserves Winnow's
+ * existing skill-to-tool activation. Everything Winnow activated earlier in the
  * session is kept so the set only ever grows, which is what lets a provider
  * reuse the cached prompt prefix across turns.
  */

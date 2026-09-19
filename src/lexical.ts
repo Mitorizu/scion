@@ -4,7 +4,7 @@ const STOP_WORDS = new Set([
 	"this", "through", "use", "using", "when", "where", "which", "with", "work", "you", "your",
 ]);
 
-/** Split text into the words Scion is willing to match on. */
+/** Split text into the words Winnow is willing to match on. */
 export function words(value: string): string[] {
 	return value
 		.toLowerCase()
